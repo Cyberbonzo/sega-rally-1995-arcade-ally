@@ -22,6 +22,8 @@ python3 checkpoints.py roms/srallyc.zip --ritmo 80
 
 O ajuste multiplica por 0,8 as velocidades-alvo dos rivais nas quatro etapas de Championship (Desert, Forest, Mountain e Lakeside) e nos perfis alternativos dos adversários. A alteração alcança os carros que começam à frente ou atrás do jogador. Em Desert, por exemplo, alvos de 160 e 210 passam a 128 e 168. Curvas, largadas e colisões continuam afetando a velocidade instantânea. O ajuste mantém a física do jogador, a posição de largada e as regras de classificação.
 
+No teste em Desert no ROG Ally, os sete rivais em movimento usaram os alvos de 128, 130,4, 132, 136, 140, 144 e 168 km/h. Cada valor corresponde a 80% do alvo original do mesmo carro.
+
 O bônus de tempo acrescenta dez segundos aos checkpoints de Championship e Practice. O relógio inicial usa o tempo configurado no gabinete. Em Desert, os bônus observados foram de 28 e 41 segundos, ante 18 e 31 na tabela original.
 
 Para voltar ao ritmo original dos adversários e manter o bônus de tempo, execute:
