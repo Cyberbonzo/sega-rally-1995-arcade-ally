@@ -70,6 +70,72 @@ def cpu_pace(low, high):
     return tuple(bytes(lane) for lane in lanes)
 
 
+def countdown_hud(low, high):
+    """Render hundreds, tens and units within the Revision C timer routine.
+
+    The HUD caches rounded-up seconds in r4 and selects the digit palette
+    in r5. Local i960 registers survive the arcade's tile drawing calls.
+    Game time, checkpoint awards and race state are outside these edits.
+    """
+    lanes = bytearray(low), bytearray(high)
+
+    def words(address, values):
+        for index, value in enumerate(values):
+            offset = address // 2 + 2 * index
+            data = struct.pack("<I", value)
+            lanes[0][offset:offset + 2] = data[:2]
+            lanes[1][offset:offset + 2] = data[2:]
+
+    # Both immediates are the existing HUD display limit.
+    words(0x1E514, [0x8CA803E7])
+    words(0x1E51C, [0x8C2003E7])
+
+    # Start one digit to the left of the original tens position.
+    # r6 = divisor, r7 = x, r8 = y, r9 = tile sheet.
+    words(0x1E554, [
+        0x90383000,  # ld 0x20aebc, r7
+        0x0020AEBC,  # absolute address
+        0x5939C904,  # subo 4, r7, r7
+        0x90403000,  # ld 0x20aec0, r8
+        0x0020AEC0,  # absolute address
+        0x90483000,  # ld 0x20ac7c, r9
+        0x0020AC7C,  # absolute address
+        0x8C300064,  # lda 100, r6
+        0x5C801607,  # mov r7, r16
+        0x5C881608,  # mov r8, r17
+        0x5C901609,  # mov r9, r18
+        0x5C981E00,  # mov 0, r19
+        0x5CA01E00,  # mov 0, r20
+        0x5A01A084,  # cmpi r4, r6
+        0x1300000C,  # bge draw
+        0x3D09A01C,  # cmpibne 1, r6, blank
+        0x39012018,  # cmpibg 0, r4, blank
+        0x74990586,  # divi r6, r4, r19
+        0x749CCC0A,  # remi 10, r19, r19
+        0x599CC005,  # addo r5, r19, r19
+        0x0900B66C,  # call 0x29c10
+        0x08000008,  # b next
+        0x0900B7B4,  # call 0x29d60
+        0x5939C804,  # addo 4, r7, r7
+        0x74318D8A,  # divi 10, r6, r6
+        0x3D01BFBC,  # cmpibne 0, r6, digit
+        0x0A000000,  # ret
+    ])
+
+    # The hide callback clears the same three positions in the primary HUD.
+    words(0x1E5D0, [
+        0x5C381E17,  # mov 23, r7
+        0x5C401E09,  # mov 9, r8
+        0x90483000,  # ld 0x20ac7c, r9
+        0x0020AC7C,  # absolute address
+        0x8C300064,  # lda 100, r6
+        0x59201901,  # subo 1, 0, r4
+        0x5C281E00,  # mov 0, r5
+        0x08FFFF88,  # b digit
+    ])
+    return tuple(bytes(lane) for lane in lanes)
+
+
 def read_pair(archive):
     return archive.read(PROGRAM), archive.read(SECOND)
 
@@ -84,11 +150,14 @@ def apply(path, requested_pace):
         raise ValueError("Segunda ROM de programa incompatível.")
     normal = update_lane(stock[0]), stock[1]
     slower = cpu_pace(*normal)
+    normal_hud = countdown_hud(*normal)
+    slower_hud = countdown_hud(*slower)
     with ZipFile(path) as game:
         active = read_pair(game)
-        if active not in (stock, normal, slower):
+        if active not in (stock, normal, slower, normal_hud, slower_hud):
             raise ValueError("O programa atual diverge das versões compatíveis.")
-        desired = slower if requested_pace == 80 or (requested_pace is None and active == slower) else normal
+        use_slower = requested_pace == 80 or (requested_pace is None and active in (slower, slower_hud))
+        desired = slower_hud if use_slower else normal_hud
         if active == desired:
             return
         with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as temp:

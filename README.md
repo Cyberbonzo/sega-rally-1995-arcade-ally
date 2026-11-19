@@ -26,10 +26,12 @@ No teste em Desert no ROG Ally, os sete rivais em movimento usaram os alvos de 1
 
 O bônus de tempo acrescenta dez segundos aos checkpoints de Championship e Practice. O relógio inicial usa o tempo configurado no gabinete. Em Desert, os bônus observados foram de 28 e 41 segundos, ante 18 e 31 na tabela original.
 
+O contador central mostra os segundos restantes com até três dígitos. Ao acumular mais de 99 segundos, o painel exibe o valor do relógio da corrida. Abaixo de 100 segundos, a centena desaparece. A correção também se aplica ao ritmo original dos rivais.
+
 Para voltar ao ritmo original dos adversários e manter o bônus de tempo, execute:
 
 ```sh
 python3 checkpoints.py roms/srallyc.zip --ritmo 100
 ```
 
-Executar o comando sem `--ritmo` aplica o bônus de checkpoint e preserva o ritmo já escolhido. O script guarda uma cópia do conjunto original em `roms/srallyc.original.zip`. Para desfazer ambos os ajustes, feche o jogo e copie esse arquivo sobre `roms/srallyc.zip`.
+Executar o comando sem `--ritmo` aplica o bônus de checkpoint e preserva o ritmo já escolhido. O script guarda uma cópia do conjunto original em `roms/srallyc.original.zip`. Para restaurar o painel, o tempo de checkpoint e o ritmo originais, feche o jogo e copie esse arquivo sobre `roms/srallyc.zip`.
