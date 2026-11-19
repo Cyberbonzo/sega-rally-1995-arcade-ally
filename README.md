@@ -26,7 +26,7 @@ No teste em Desert no ROG Ally, os sete rivais em movimento usaram os alvos de 1
 
 O bônus de tempo acrescenta dez segundos aos checkpoints de Championship e Practice. O relógio inicial usa o tempo configurado no gabinete. Em Desert, os bônus observados foram de 28 e 41 segundos, ante 18 e 31 na tabela original.
 
-O contador central mostra os segundos restantes com até três dígitos. Ao acumular mais de 99 segundos, o painel exibe o valor do relógio da corrida. Abaixo de 100 segundos, a centena desaparece. A correção também se aplica ao ritmo original dos rivais.
+O relógio da corrida admite no máximo 99 segundos. O jogo aplica o limite ao iniciar a etapa, ao transferir o saldo entre etapas e ao creditar um checkpoint. Por exemplo, com 90 segundos restantes e um bônus de 28, o saldo passa a 99 e a contagem regressiva continua. O tempo total da prova e os tempos de volta continuam independentes desse limite. No teste em Desert, um bônus de 44 segundos teria levado o saldo acima de 101 segundos. O saldo efetivo ficou em 99 e caiu para 98 após um segundo de corrida.
 
 Para voltar ao ritmo original dos adversários e manter o bônus de tempo, execute:
 

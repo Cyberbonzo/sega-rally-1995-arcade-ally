@@ -70,6 +70,14 @@ def cpu_pace(low, high):
     return tuple(bytes(lane) for lane in lanes)
 
 
+def write_words(lanes, address, values):
+    for index, value in enumerate(values):
+        offset = address // 2 + 2 * index
+        data = struct.pack("<I", value)
+        lanes[0][offset:offset + 2] = data[:2]
+        lanes[1][offset:offset + 2] = data[2:]
+
+
 def countdown_hud(low, high):
     """Render hundreds, tens and units within the Revision C timer routine.
 
@@ -79,20 +87,13 @@ def countdown_hud(low, high):
     """
     lanes = bytearray(low), bytearray(high)
 
-    def words(address, values):
-        for index, value in enumerate(values):
-            offset = address // 2 + 2 * index
-            data = struct.pack("<I", value)
-            lanes[0][offset:offset + 2] = data[:2]
-            lanes[1][offset:offset + 2] = data[2:]
-
     # Both immediates are the existing HUD display limit.
-    words(0x1E514, [0x8CA803E7])
-    words(0x1E51C, [0x8C2003E7])
+    write_words(lanes, 0x1E514, [0x8CA803E7])
+    write_words(lanes, 0x1E51C, [0x8C2003E7])
 
     # Start one digit to the left of the original tens position.
     # r6 = divisor, r7 = x, r8 = y, r9 = tile sheet.
-    words(0x1E554, [
+    write_words(lanes, 0x1E554, [
         0x90383000,  # ld 0x20aebc, r7
         0x0020AEBC,  # absolute address
         0x5939C904,  # subo 4, r7, r7
@@ -123,7 +124,7 @@ def countdown_hud(low, high):
     ])
 
     # The hide callback clears the same three positions in the primary HUD.
-    words(0x1E5D0, [
+    write_words(lanes, 0x1E5D0, [
         0x5C381E17,  # mov 23, r7
         0x5C401E09,  # mov 9, r8
         0x90483000,  # ld 0x20ac7c, r9
@@ -133,6 +134,28 @@ def countdown_hud(low, high):
         0x5C281E00,  # mov 0, r5
         0x08FFFF88,  # b digit
     ])
+    return tuple(bytes(lane) for lane in lanes)
+
+
+def cap_race_clock(low, high):
+    """Store min(remaining ticks, 99 * 60) at every time-grant site."""
+    lanes = bytearray(low), bytearray(high)
+    # countdown_hud's hide handler branches away at 0x1E5EC. Its old
+    # tail is unused and fits this leaf function without moving any code.
+    routine = 0x1E5F0
+    write_words(lanes, routine, [
+        0x8C203000, 99 * 60,  # lda maximum ticks, r4 (callee-local)
+        0x3EA10008,           # cmpible r20, r4, store
+        0x5CA01604,           # mov r4, r20
+        0x92A03000, 0x20B0B0, # store: st r20, remaining race ticks
+        0x0A000000,           # ret
+    ])
+    # Stage start supplies ticks in r4. The other four paths (stage
+    # carryover and checkpoint awards) already have the new time in r20.
+    for site in (0x1C884, 0x1CDFC, 0x1D244, 0x1D2F4, 0x1D4DC):
+        prepare = 0x5CA01604 if site == 0x1C884 else 0x5CA01614
+        displacement = routine - (site + 4)
+        write_words(lanes, site, [prepare, 0x09000000 | (displacement & 0xFFFFFC)])
     return tuple(bytes(lane) for lane in lanes)
 
 
@@ -152,12 +175,14 @@ def apply(path, requested_pace):
     slower = cpu_pace(*normal)
     normal_hud = countdown_hud(*normal)
     slower_hud = countdown_hud(*slower)
+    normal_cap = cap_race_clock(*normal_hud)
+    slower_cap = cap_race_clock(*slower_hud)
     with ZipFile(path) as game:
         active = read_pair(game)
-        if active not in (stock, normal, slower, normal_hud, slower_hud):
+        if active not in (stock, normal, slower, normal_hud, slower_hud, normal_cap, slower_cap):
             raise ValueError("O programa atual diverge das versões compatíveis.")
-        use_slower = requested_pace == 80 or (requested_pace is None and active in (slower, slower_hud))
-        desired = slower_hud if use_slower else normal_hud
+        use_slower = requested_pace == 80 or (requested_pace is None and active in (slower, slower_hud, slower_cap))
+        desired = slower_cap if use_slower else normal_cap
         if active == desired:
             return
         with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as temp:
